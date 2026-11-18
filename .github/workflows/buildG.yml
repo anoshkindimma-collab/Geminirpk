@@ -5,6 +5,9 @@ on:
     paths:
       - '*.zip'
 
+permissions:
+  contents: write
+
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -17,6 +20,7 @@ jobs:
         run: |
           shopt -s nullglob
           found=0
+          mkdir -p release_files
           for z in *.zip; do
             found=1
             name="${z%.zip}"
@@ -26,11 +30,10 @@ jobs:
             (cd "out/$name" && npm install && npx aiot build)
           done
           if [ "$found" = 0 ]; then echo "No zip files in repo root"; exit 1; fi
-          find out -name "*.rpk" -not -path "*/node_modules/*"
-      - name: Upload RPK
-        uses: actions/upload-artifact@v4
+          find out -name "*.rpk" -not -path "*/node_modules/*" -exec cp {} release_files/ \;
+      - name: Publish RPK to Releases
+        uses: softprops/action-gh-release@v2
         with:
-          name: rpk-build
-          path: |
-            out/*/dist/*.rpk
-          if-no-files-found: error
+          tag_name: build-${{ github.run_number }}
+          name: Build #${{ github.run_number }}
+          files: release_files/*.rpk
